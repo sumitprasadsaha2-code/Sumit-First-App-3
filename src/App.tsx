@@ -23,6 +23,31 @@ import {
   deleteUserAuthCredentials
 } from "./lib/firestoreService";
 
+const APP_VERSION = "1.0";
+
+function normalizeStudent(student: Partial<Student> | null | undefined): Student {
+  return {
+    id: student?.id || "",
+    name: student?.name || "Unnamed Student",
+    classGrade: student?.classGrade || "",
+    phone: student?.phone || "",
+    parentPhone: student?.parentPhone || "",
+    monthlyFee: student?.monthlyFee || 0,
+    feePaidThisMonth: Boolean(student?.feePaidThisMonth),
+    registrationDate: student?.registrationDate,
+    feeMonths: student?.feeMonths || {},
+    feeMonthsList: student?.feeMonthsList || [],
+    feePaymentDates: student?.feePaymentDates || {},
+    enrolledSubjects: student?.enrolledSubjects || [],
+    avatarUrl: student?.avatarUrl,
+    avatarColor: student?.avatarColor,
+    notes: student?.notes || {},
+    attendance: student?.attendance || {},
+    email: student?.email,
+    password: student?.password,
+  };
+}
+
 export default function App() {
   // --- Authentication States ---
   const [auth, setAuth] = useState<{
@@ -204,33 +229,52 @@ export default function App() {
     }
 
     // Initialize feeMonths for all students if not present
-    return parsed.map(student => {
-      if (!student.feeMonths) {
-        const regDate = student.registrationDate || "2026-06-01";
+    return parsed.map((student) => {
+      const normalized = normalizeStudent(student);
+      if (!normalized.feeMonths || Object.keys(normalized.feeMonths).length === 0) {
+        const regDate = normalized.registrationDate || "2026-06-01";
         const [regYearStr, regMonthStr] = regDate.split("-");
         const regYear = parseInt(regYearStr) || 2026;
         const regMonthIdx = (parseInt(regMonthStr) || 6) - 1;
 
         if (regYear === 2026 && regMonthIdx === 5) {
           return {
-            ...student,
+            ...normalized,
             feeMonths: {
-              "June 2026": student.id === "student-3" || student.id === "student-5" ? "unpaid" : "paid"
+              "June 2026": normalized.id === "student-3" || normalized.id === "student-5" ? "unpaid" : "paid"
             }
           };
         }
 
         return {
-          ...student,
+          ...normalized,
           feeMonths: {
-            "June 2026": student.id === "student-3" || student.id === "student-5" ? "unpaid" : "paid",
-            "July 2026": student.feePaidThisMonth ? "paid" : "unpaid"
+            "June 2026": normalized.id === "student-3" || normalized.id === "student-5" ? "unpaid" : "paid",
+            "July 2026": normalized.feePaidThisMonth ? "paid" : "unpaid"
           }
         };
       }
-      return student;
+      return normalized;
     });
   });
+
+  // Find active student object if selected
+  const activeStudent = React.useMemo(() => {
+    const targetId = auth.role === "student" ? auth.loggedInStudentId : selectedStudentId;
+    const found = students.find((s) => s.id === targetId);
+    return found ? normalizeStudent(found) : null;
+  }, [students, selectedStudentId, auth.role, auth.loggedInStudentId]);
+
+  useEffect(() => {
+    if (auth.role === "student" && activeStudent?.id) {
+      const storedStudentTheme = localStorage.getItem(`tuition_student_visual_theme_${activeStudent.id}`);
+      const nextTheme = storedStudentTheme || localStorage.getItem("tuition_app_visual_theme") || "sapphire";
+      setVisualTheme(nextTheme);
+    } else {
+      const adminTheme = localStorage.getItem("tuition_app_visual_theme") || "sapphire";
+      setVisualTheme(adminTheme);
+    }
+  }, [auth.role, activeStudent?.id]);
 
   // Save changes to local persistence
   useEffect(() => {
@@ -251,13 +295,24 @@ export default function App() {
     }
   }, [theme]);
 
+  const handleVisualThemeChange = (theme: string) => {
+    if (auth.role === "student" && activeStudent?.id) {
+      localStorage.setItem(`tuition_student_visual_theme_${activeStudent.id}`, theme);
+    } else {
+      localStorage.setItem("tuition_app_visual_theme", theme);
+    }
+    setVisualTheme(theme);
+  };
+
   // Handle premium visual theme application
   useEffect(() => {
-    localStorage.setItem("tuition_app_visual_theme", visualTheme);
+    if (auth.role !== "student") {
+      localStorage.setItem("tuition_app_visual_theme", visualTheme);
+    }
     const root = window.document.documentElement;
     root.classList.remove("theme-sunset", "theme-ocean", "theme-neon", "theme-cosmic", "theme-sapphire", "theme-olive", "theme-ruby", "theme-gold", "theme-white");
     root.classList.add(`theme-${visualTheme}`);
-  }, [visualTheme]);
+  }, [auth.role, visualTheme]);
 
   // Save QR Code to local storage
   const handleSaveQrCode = (dataUrl: string | null) => {
@@ -274,16 +329,10 @@ export default function App() {
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
 
-  // Find active student object if selected
-  const activeStudent = React.useMemo(() => {
-    const targetId = auth.role === "student" ? auth.loggedInStudentId : selectedStudentId;
-    return students.find((s) => s.id === targetId) || null;
-  }, [students, selectedStudentId, auth.role, auth.loggedInStudentId]);
-
   // Find notes for the current active subject
   const currentSubjectNotes = React.useMemo(() => {
     if (!activeStudent || !activeSubject) return [];
-    return activeStudent.notes[activeSubject] || [];
+    return activeStudent.notes?.[activeSubject] || [];
   }, [activeStudent, activeSubject]);
 
   // --- State Mutators ---
@@ -322,9 +371,6 @@ export default function App() {
         attendance: studentToEdit.attendance || {},
         feeMonths: studentToEdit.feeMonths || {},
       };
-      // Remove raw password
-      delete (updatedStudent as any).password;
-
       setStudents((prev) =>
         prev.map((s) => (s.id === studentToEdit.id ? updatedStudent : s))
       );
@@ -358,9 +404,6 @@ export default function App() {
         }, {} as Record<string, ChapterNote[]>),
         attendance: {},
       };
-
-      // Remove raw password
-      delete (newStudent as any).password;
 
       // Handle student Login account generation
       if (studentData.email) {
@@ -841,7 +884,7 @@ export default function App() {
               theme={theme} 
               onThemeChange={setTheme} 
               visualTheme={visualTheme}
-              onVisualThemeChange={setVisualTheme}
+              onVisualThemeChange={handleVisualThemeChange}
               qrCode={qrCode}
               onQrCodeChange={handleSaveQrCode}
               onResetData={handleResetData} 
@@ -884,7 +927,7 @@ export default function App() {
               theme={theme} 
               onThemeChange={setTheme} 
               visualTheme={visualTheme}
-              onVisualThemeChange={setVisualTheme}
+              onVisualThemeChange={handleVisualThemeChange}
               qrCode={qrCode}
               onQrCodeChange={handleSaveQrCode}
               onResetData={handleResetData} 
@@ -917,6 +960,9 @@ export default function App() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">
               {auth.role === "admin" ? "Admin Console" : `Student Portal: ${activeStudent?.name || ""}`}
+            </span>
+            <span className="rounded-full border border-slate-200/70 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-400">
+              v{APP_VERSION}
             </span>
           </div>
           <button

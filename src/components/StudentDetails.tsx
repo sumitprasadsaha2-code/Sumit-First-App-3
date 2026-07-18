@@ -25,7 +25,6 @@ import {
   Save,
   Plus,
   Mail,
-  KeyRound,
   Eye,
   EyeOff
 } from "lucide-react";
@@ -314,7 +313,17 @@ export default function StudentDetails({
     const regDateStr = student.registrationDate || "2026-06-01";
     const todayStr = new Date().toISOString().split("T")[0];
 
-    return currentMonthDates.map(date => {
+    const sortedDates = [...currentMonthDates].sort((a, b) => b.localeCompare(a));
+    const today = new Date().toISOString().split("T")[0];
+    const [todayYear, todayMonth] = today.split("-");
+    const [selectedYear, selectedMonth] = attendanceMonth.split("-");
+    const isCurrentMonth = todayYear === selectedYear && todayMonth === selectedMonth;
+
+    const orderedDates = isCurrentMonth && sortedDates.includes(today)
+      ? [today, ...sortedDates.filter((date) => date !== today)]
+      : sortedDates;
+
+    return orderedDates.map((date) => {
       const dateObj = new Date(date);
       const monthName = monthNames[dateObj.getMonth()];
       const dayNum = dateObj.getDate();
@@ -847,13 +856,13 @@ export default function StudentDetails({
 
               <div className="flex items-center gap-3.5 p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-3xs">
                 <div className="p-2 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl">
-                  <KeyRound className="w-4 h-4" />
+                  <User className="w-4 h-4" />
                 </div>
                 <div className="flex flex-1 items-center gap-2 min-w-0">
                   <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Password</span>
-                    <span className="text-slate-800 dark:text-slate-100 font-semibold text-sm mt-0.5">
-                      {showStudentPassword ? (student.password || "••••••••") : "••••••••"}
+                    <span className="text-slate-800 dark:text-slate-100 font-semibold text-sm mt-0.5 break-all">
+                      {showStudentPassword ? (student.password || "No password on file") : "••••••••"}
                     </span>
                   </div>
                   <button

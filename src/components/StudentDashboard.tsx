@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   BookOpen,
@@ -20,7 +20,6 @@ import {
   Eye,
   Download,
   RotateCcw,
-  Share2,
   AlertCircle,
   Cpu,
   Atom,
@@ -28,7 +27,15 @@ import {
   Dna,
   Globe,
   Scroll,
-  Languages
+  Languages,
+  BadgeCheck,
+  BadgeAlert,
+  CalendarDays,
+  Clock3,
+  CircleDollarSign,
+  ReceiptText,
+  TrendingUp,
+  ArrowUpRight
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Student, ChapterNote } from "../types";
@@ -42,7 +49,7 @@ interface StudentDashboardProps {
   onUpdateChapterRemark: (subject: string, noteId: string, remark: string) => void;
 }
 
-type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "1x3" | "3x1" | "1/2x2";
+type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "1x3" | "3x1" | "1/2x1" | "1x1/2" | "2x3" | "3x2";
 
 function getInitials(name: string) {
   return name
@@ -252,7 +259,6 @@ export function StudentMyTab({
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
   const [remarkDrafts, setRemarkDrafts] = useState<Record<string, string>>({});
   const [activePreviewPdf, setActivePreviewPdf] = useState<{ url: string; title: string } | null>(null);
-  const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (initialSubject) {
@@ -269,7 +275,9 @@ export function StudentMyTab({
 
   const selectedNotes = useMemo(() => {
     if (!selectedSubject) return [] as ChapterNote[];
-    return (student.notes[selectedSubject] || []).slice().sort((a, b) => (a.chapterNo || 0) - (b.chapterNo || 0));
+    return ((student.notes?.[selectedSubject] || []) as ChapterNote[])
+      .slice()
+      .sort((a, b) => (a.chapterNo || 0) - (b.chapterNo || 0));
   }, [selectedSubject, student.notes]);
 
   const sortedSubjects = useMemo(() => {
@@ -280,28 +288,6 @@ export function StudentMyTab({
     const draft = (remarkDrafts[note.id] ?? note.remark ?? "").trim();
     onUpdateChapterRemark(selectedSubject || "", note.id, draft);
     setEditingRemarkId(null);
-  };
-
-  const handleShare = async (note: ChapterNote) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Chapter ${note.chapterNo}: ${note.chapterName}`,
-          text: `Check out this study material for ${selectedSubject}!`,
-          url: note.pdfUrl.startsWith("data:") ? undefined : note.pdfUrl
-        });
-      } catch (err) {
-        console.log("Error sharing:", err);
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(note.pdfUrl.startsWith("data:") ? window.location.href : note.pdfUrl);
-        setCopiedNoteId(note.id);
-        setTimeout(() => setCopiedNoteId(null), 2000);
-      } catch (err) {
-        console.error("Failed to copy link:", err);
-      }
-    }
   };
 
   const getFileSizeStr = (pdfUrl: string, chapterNo: number) => {
@@ -438,28 +424,6 @@ export function StudentMyTab({
                         </a>
 
                         <button
-                          onClick={() => handleShare(note)}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold transition-all cursor-pointer ${
-                            copiedNoteId === note.id 
-                              ? "bg-emerald-50 border-emerald-300 text-emerald-600 dark:bg-emerald-950/20 dark:text-emerald-400" 
-                              : "text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-950 hover:text-purple-600 dark:hover:text-purple-400"
-                          }`}
-                          title="Share Link"
-                        >
-                          {copiedNoteId === note.id ? (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Share2 className="w-3.5 h-3.5" />
-                              <span>Share</span>
-                            </>
-                          )}
-                        </button>
-
-                        <button
                           onClick={() => {
                             if (editingRemarkId === note.id) {
                               handleSaveRemark(note);
@@ -490,9 +454,9 @@ export function StudentMyTab({
 
       {/* Student PDF Preview Modal */}
       {activePreviewPdf && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/70 animate-fadeIn" id="student-pdf-modal">
-          <div className="absolute inset-0" onClick={() => setActivePreviewPdf(null)} />
-          <div className="relative w-full h-full sm:h-[90vh] max-w-4xl bg-white dark:bg-slate-950 rounded-none sm:rounded-2xl p-0 shadow-2xl z-10 flex flex-col overflow-hidden border border-slate-100 dark:border-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/70 animate-fadeIn backdrop-blur-sm" id="student-pdf-modal" onClick={() => setActivePreviewPdf(null)}>
+          <div className="absolute inset-0" />
+          <div className="relative w-full h-full sm:h-[90vh] max-w-4xl bg-white dark:bg-slate-950 rounded-none sm:rounded-2xl p-0 shadow-2xl z-10 flex flex-col overflow-hidden border border-slate-100 dark:border-slate-900" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center bg-slate-900 text-white p-4 shrink-0">
               <div className="flex items-center gap-2.5 truncate">
                 <FileText className="w-5 h-5 text-blue-400" />
@@ -518,7 +482,7 @@ export function StudentMyTab({
             <div className="flex-1 bg-slate-100 dark:bg-slate-900 p-2 sm:p-4 flex items-center justify-center relative">
               {activePreviewPdf.url ? (
                 <iframe
-                  src={`${activePreviewPdf.url}#toolbar=1`}
+                  src={activePreviewPdf.url.startsWith("data:") ? activePreviewPdf.url : `${activePreviewPdf.url}#toolbar=1&view=FitH&page=1`}
                   className="w-full h-full rounded-lg border border-slate-200 dark:border-slate-800 bg-white"
                   title={activePreviewPdf.title}
                 />
@@ -610,11 +574,17 @@ export default function StudentDashboard({
 
   const [subjectSizes, setSubjectSizes] = useState<Record<string, TileSize>>(() => {
     const initial: Record<string, TileSize> = {};
+    const saved = localStorage.getItem(`tuition_student_subject_sizes_${student.id}`);
+    const parsed = saved ? JSON.parse(saved) : {};
     student.enrolledSubjects.forEach((sub) => {
-      initial[sub] = "2x1";
+      initial[sub] = parsed[sub] || "2x1";
     });
     return initial;
   });
+
+  useEffect(() => {
+    localStorage.setItem(`tuition_student_subject_sizes_${student.id}`, JSON.stringify(subjectSizes));
+  }, [student.id, subjectSizes]);
 
   const [cardOrder, setCardOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem(`tuition_student_layout_${student.id}`);
@@ -695,7 +665,7 @@ export default function StudentDashboard({
   };
 
   const attendanceStats = useMemo(() => {
-    const records = Object.values(student.attendance).filter((r) => r !== "na");
+    const records = Object.values(student.attendance || {}).filter((r) => r !== "na");
     const total = records.length;
     const presents = records.filter((r) => r === true).length;
     const rate = total > 0 ? Math.round((presents / total) * 100) : 100;
@@ -705,7 +675,7 @@ export default function StudentDashboard({
   const subjectProgress = useMemo(() => {
     return student.enrolledSubjects
       .map((sub) => {
-        const notes = student.notes[sub] || [];
+        const notes = student.notes?.[sub] || [];
         const total = notes.length;
         const completed = notes.filter((n) => n.isCompleted).length;
         const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -719,7 +689,7 @@ export default function StudentDashboard({
     return dates.map((date) => {
       const dateObj = new Date(date);
       const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      return { date, dayName: dayNames[dateObj.getDay()], dayNum: dateObj.getDate(), val: student.attendance[date] };
+      return { date, dayName: dayNames[dateObj.getDay()], dayNum: dateObj.getDate(), val: student.attendance?.[date] };
     });
   }, [student.attendance]);
 
@@ -728,6 +698,45 @@ export default function StudentDashboard({
     const d = new Date();
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   }, []);
+
+  const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const attendanceTodayStatus = student.attendance?.[todayKey];
+  const attendanceTodayLabel = attendanceTodayStatus === true ? "Present" : attendanceTodayStatus === false ? "Absent" : "Not marked";
+  const attendanceTodayBadge = attendanceTodayStatus === true
+    ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+    : attendanceTodayStatus === false
+      ? "border-rose-400/40 bg-rose-500/15 text-rose-700 dark:text-rose-300"
+      : "border-slate-400/30 bg-slate-500/10 text-slate-700 dark:text-slate-300";
+
+  const attendanceStreak = useMemo(() => {
+    const dates = Object.keys(student.attendance || {})
+      .filter((date) => date <= todayKey)
+      .sort((a, b) => b.localeCompare(a));
+
+    let streak = 0;
+    for (const date of dates) {
+      const status = student.attendance?.[date];
+      if (status === true) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }, [student.attendance, todayKey]);
+
+  const lastAttendanceDate = useMemo(() => {
+    const dates = Object.keys(student.attendance || {})
+      .filter((date) => student.attendance?.[date] === true || student.attendance?.[date] === false)
+      .sort((a, b) => b.localeCompare(a));
+    return dates[0] || null;
+  }, [student.attendance]);
+
+  const currentMonthAttendanceCount = useMemo(() => {
+    const monthKey = new Date().toISOString().slice(0, 7);
+    return Object.keys(student.attendance || {}).filter((date) => date.startsWith(monthKey) && student.attendance?.[date] !== "na").length;
+  }, [student.attendance]);
 
   const currentMonthStatus = student.feeMonths?.[currentMonthName] || (student.feePaidThisMonth ? "paid" : "unpaid");
 
@@ -738,6 +747,27 @@ export default function StudentDashboard({
     return { paidCount, unpaidCount };
   }, [student.feeMonths]);
 
+  const pendingMonths = useMemo(() => {
+    return Object.entries(student.feeMonths || {})
+      .filter(([, status]) => status === "unpaid")
+      .map(([month]) => month)
+      .sort((a, b) => a.localeCompare(b));
+  }, [student.feeMonths]);
+
+  const totalPendingAmount = useMemo(() => {
+    return pendingMonths.length * (student.monthlyFee || 0);
+  }, [pendingMonths.length, student.monthlyFee]);
+
+  const lastPaymentDate = useMemo(() => {
+    const entries = Object.entries(student.feePaymentDates || {})
+      .filter(([, value]) => Boolean(value))
+      .sort((a, b) => (b[1] || "").localeCompare(a[1] || ""));
+    return entries[0]?.[1] || null;
+  }, [student.feePaymentDates]);
+
+  const nextDueLabel = pendingMonths[0] || "No pending dues";
+  const paidAcademicYearAmount = feeStats.paidCount * (student.monthlyFee || 0);
+
   const activeSubjectDetails = useMemo(() => {
     if (!selectedSubjectModal) return null;
     return subjectProgress.find((sub) => sub.name === selectedSubjectModal) || null;
@@ -745,20 +775,23 @@ export default function StudentDashboard({
 
   const sizeClasses: Record<TileSize, string> = {
     "1x1": "col-span-1 row-span-1",
-    "2x1": "col-span-2 row-span-1",
+    "2x1": "col-span-1 sm:col-span-2 row-span-1",
     "1x2": "col-span-1 row-span-2",
-    "2x2": "col-span-2 row-span-2",
+    "2x2": "col-span-1 sm:col-span-2 row-span-2",
     "1x3": "col-span-1 row-span-3",
-    "3x1": "col-span-3 row-span-1",
-    "1/2x2": "col-span-1 row-span-2"
+    "3x1": "col-span-1 sm:col-span-2 xl:col-span-3 row-span-1",
+    "1/2x1": "col-span-1 row-span-1",
+    "1x1/2": "col-span-1 row-span-1",
+    "2x3": "col-span-1 sm:col-span-2 row-span-3",
+    "3x2": "col-span-1 sm:col-span-2 xl:col-span-3 row-span-2"
   };
 
-  const cardBaseClass = "rounded-[24px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition-all duration-300";
+  const cardBaseClass = "rounded-[28px] border-0 bg-white/90 dark:bg-slate-900/95 p-3 shadow-[0_14px_40px_rgba(15,23,42,0.08),0_2px_10px_rgba(15,23,42,0.04)] transition-all duration-300 backdrop-blur";
 
   return (
     <div className="flex flex-col gap-4 animate-fadeIn" id="student-dashboard-root">
       {/* Student Welcome Header Card */}
-      <div className="flex items-center gap-3 rounded-[28px] border border-blue-400/30 bg-gradient-to-r from-blue-600 via-blue-600 to-purple-600 p-4 text-white shadow-lg" style={{boxShadow: "0 8px 32px rgba(59, 130, 246, 0.25)"}}>
+      <div className="flex items-center gap-3 rounded-[28px] border border-blue-400/30 bg-gradient-to-r from-slate-900 via-blue-700 to-indigo-700 p-4 text-white shadow-[0_18px_55px_rgba(15,23,42,0.18)]">
         <button onClick={onOpenAvatarModal} className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-3 border-white/80 bg-white/10 hover:bg-white/20 transition-all cursor-pointer group shadow-lg" title="Upload and edit photo">
           {student.avatarUrl ? (
             <img src={student.avatarUrl} alt={student.name} className="h-full w-full object-cover" />
@@ -770,58 +803,159 @@ export default function StudentDashboard({
           </div>
         </button>
         <div className="flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-100">Personal Student Space</p>
-          <h1 className="text-lg font-black">{student.name}</h1>
-          <p className="text-xs text-blue-100">Keep track of progress and attendance and many more.</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.35em] text-blue-100">Personal Student Space</p>
+          <h1 className="text-xl font-black">{student.name}</h1>
+          <p className="text-[12px] text-blue-100/95">Keep track of progress and attendance and many more.</p>
           {student.registrationDate && (
-            <p className="text-[11px] text-blue-200 mt-1.5">Joined: {formatDate(student.registrationDate)}</p>
+            <p className="text-[10px] text-blue-200/90 mt-1">Joined: {formatDate(student.registrationDate)}</p>
           )}
         </div>
       </div>
 
       {/* Top Fixed Tiles Grid (1x1 sizes side-by-side) */}
-      <div className="grid grid-cols-2 gap-3" id="fixed-student-tiles">
+      <div className="grid gap-3 md:grid-cols-2" id="fixed-student-tiles">
         {/* Attendance Card (Fixed 1x1) */}
         <div 
           onClick={() => setShowAttendanceHistoryModal(true)}
-          className="rounded-[24px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-98 transition-all cursor-pointer flex flex-col justify-between min-h-[140px]"
+          className="relative overflow-hidden rounded-[28px] border border-white/20 bg-gradient-to-br from-slate-900 via-blue-700 to-indigo-700 p-4 text-white shadow-[0_20px_50px_rgba(30,64,175,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(30,64,175,0.34)] cursor-pointer"
           id="fixed-attendance-tile"
         >
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-indigo-500" />
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Attendance</span>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-slate-800 dark:text-slate-100">{attendanceStats.rate}%</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">{attendanceStats.presents}/{attendanceStats.total} classes</p>
-          </div>
-          <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-0.5">
-            View History <ChevronRight className="h-3 w-3" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_44%)]" />
+          <div className="relative flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-2 backdrop-blur-sm">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-100">Attendance</p>
+                  <p className="text-[11px] text-blue-100/80">Live summary</p>
+                </div>
+              </div>
+              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${attendanceTodayBadge}`}>
+                {attendanceTodayLabel}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-3xl font-black leading-none">{attendanceStats.rate}%</p>
+                <p className="mt-1 text-[11px] text-blue-100/85">{attendanceStats.presents}/{attendanceStats.total} classes</p>
+              </div>
+              <div className="relative flex h-16 w-16 items-center justify-center">
+                <svg className="h-16 w-16 -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="38" stroke="rgba(255,255,255,0.18)" strokeWidth="10" fill="none" />
+                  <circle cx="50" cy="50" r="38" stroke="currentColor" strokeWidth="10" strokeLinecap="round" fill="none" strokeDasharray={238.8} strokeDashoffset={238.8 - (238.8 * attendanceStats.rate) / 100} className="text-blue-100" />
+                </svg>
+                <div className="absolute text-[11px] font-black">{attendanceStats.rate}%</div>
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-blue-100/80">
+                  <TrendingUp className="h-3 w-3" />
+                  7 days
+                </div>
+                <p className="mt-1 text-sm font-black">{recentAttendance.filter((entry) => entry.val === true).length}/{recentAttendance.length}</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-blue-100/80">
+                  <Clock3 className="h-3 w-3" />
+                  Streak
+                </div>
+                <p className="mt-1 text-sm font-black">{attendanceStreak} day{attendanceStreak === 1 ? "" : "s"}</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-sm sm:col-span-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-blue-100/80">
+                  <Calendar className="h-3 w-3" />
+                  Last / Month
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm font-semibold text-blue-50">
+                  <span>{lastAttendanceDate ? formatDate(lastAttendanceDate) : "No record"}</span>
+                  <span className="text-blue-100/80">{currentMonthAttendanceCount} this month</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[10px] font-black uppercase tracking-[0.25em] text-blue-100/90">
+              <span>View History</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </div>
           </div>
         </div>
 
         {/* Fees Card (Fixed 1x1) */}
         <div 
           onClick={() => setShowFeeHistoryModal(true)}
-          className="rounded-[24px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-98 transition-all cursor-pointer flex flex-col justify-between min-h-[140px]"
+          className="relative overflow-hidden rounded-[28px] border border-white/20 bg-gradient-to-br from-emerald-700 via-teal-600 to-cyan-600 p-4 text-white shadow-[0_20px_50px_rgba(13,148,136,0.26)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(13,148,136,0.32)] cursor-pointer"
           id="fixed-fees-tile"
         >
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Fees</span>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-slate-800 dark:text-slate-100">₹{student.monthlyFee}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">{currentMonthName}</p>
-          </div>
-          <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-0.5">
-            View History <ChevronRight className="h-3 w-3" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.2),_transparent_42%)]" />
+          <div className="relative flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-2 backdrop-blur-sm">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-50">Fees</p>
+                  <p className="text-[11px] text-emerald-50/80">Payment overview</p>
+                </div>
+              </div>
+              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] ${currentMonthStatus === "paid" ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-50" : currentMonthStatus === "na" ? "border-slate-400/30 bg-slate-500/10 text-slate-50" : "border-amber-400/40 bg-amber-500/15 text-amber-50"}`}>
+                {currentMonthStatus === "paid" ? "Paid" : currentMonthStatus === "na" ? "N/A" : "Pending"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-3xl font-black leading-none">₹{student.monthlyFee}</p>
+                <p className="mt-1 text-[11px] text-emerald-50/85">{currentMonthName}</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-50/80">Pending</p>
+                <p className="text-xl font-black">₹{totalPendingAmount}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-50/80">
+                  <ReceiptText className="h-3 w-3" />
+                  Months
+                </div>
+                <p className="mt-1 text-sm font-black">{pendingMonths.length} pending</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-50/80">
+                  <CircleDollarSign className="h-3 w-3" />
+                  Paid
+                </div>
+                <p className="mt-1 text-sm font-black">₹{paidAcademicYearAmount}</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-2.5 backdrop-blur-sm sm:col-span-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-50/80">
+                  <CalendarDays className="h-3 w-3" />
+                  Next / Last
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm font-semibold text-emerald-50">
+                  <span>{nextDueLabel}</span>
+                  <span className="text-emerald-50/80">{lastPaymentDate ? formatDate(lastPaymentDate) : "No payment"}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-white/15 pt-2 text-[10px] font-black uppercase tracking-[0.25em] text-emerald-50/90">
+              <span>View History</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Dynamic Subjects Grid */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-[minmax(190px,auto)]" style={{ gridAutoFlow: "dense" }}>
         {enrolledSubjectCardsOnly.map((cardId) => {
           const sub = subjectProgress.find((item) => item.name === cardId);
           if (!sub) return null;
@@ -838,22 +972,33 @@ export default function StudentDashboard({
               key={sub.name}
               className={`${cardBaseClass} ${sizeClasses[size]} ${draggedCardId === sub.name ? "opacity-50" : ""}`}
             >
-              <div className={`rounded-[20px] bg-gradient-to-br ${palette.from} p-3`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="h-4 w-4 text-slate-300 dark:text-slate-700 cursor-grab" />
-                    <BookOpen className={`h-4 w-4 ${palette.ring}`} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-600 dark:text-slate-400">{sub.name}</span>
+              <div className={`flex h-full flex-col rounded-[22px] bg-gradient-to-br ${palette.from} p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)]`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/50 bg-white/70 dark:bg-slate-900/60 shadow-sm">
+                      {(() => {
+                        const IconComponent = getSubjectIcon(sub.name);
+                        return <IconComponent className={`h-4 w-4 ${palette.ring}`} />;
+                      })()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-600 dark:text-slate-400">{sub.name}</p>
+                      <p className="text-[11px] text-slate-600/80 dark:text-slate-400">Progress overview</p>
+                    </div>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => handleMoveUp(sub.name)} className="rounded-md p-1 text-slate-400 hover:text-slate-600 transition-colors"><ArrowUp className="h-3 w-3" /></button>
                     <button onClick={() => handleMoveDown(sub.name)} className="rounded-md p-1 text-slate-400 hover:text-slate-600 transition-colors"><ArrowDown className="h-3 w-3" /></button>
-                    <select value={size} onChange={(e) => handleSetSubjectSize(sub.name, e.target.value as TileSize)} className="rounded-md border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-2 py-1 text-[10px] font-bold text-slate-500">
-                      <option value="1x1">1x1</option>
-                      <option value="2x1">2x1</option>
-                      <option value="2x2">2x2</option>
-                      <option value="1x3">1x3</option>
-                      <option value="3x1">3x1</option>
+                    <select value={size} onChange={(e) => handleSetSubjectSize(sub.name, e.target.value as TileSize)} className="rounded-md border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/70 px-2 py-1 text-[10px] font-bold text-slate-500">
+                      <option value="1x1">1×1</option>
+                      <option value="2x1">2×1</option>
+                      <option value="1/2x1">½×1</option>
+                      <option value="1x1/2">1×½</option>
+                      <option value="2x2">2×2</option>
+                      <option value="2x3">2×3</option>
+                      <option value="3x1">3×1</option>
+                      <option value="1x3">1×3</option>
+                      <option value="3x2">3×2</option>
                     </select>
                   </div>
                 </div>
@@ -861,7 +1006,7 @@ export default function StudentDashboard({
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <div className="relative flex h-16 w-16 items-center justify-center">
                     <svg className="h-16 w-16 -rotate-90" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.85)" strokeWidth="10" fill="none" />
+                      <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.9)" strokeWidth="10" fill="none" />
                       <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="10" strokeLinecap="round" fill="none" strokeDasharray={251.2} strokeDashoffset={251.2 - (251.2 * sub.rate) / 100} className={palette.ring} />
                     </svg>
                     <div className="absolute text-sm font-black text-slate-700 dark:text-slate-300">{sub.rate}%</div>
@@ -871,12 +1016,12 @@ export default function StudentDashboard({
                     <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">{sub.total - sub.completed} remaining</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-3 flex justify-end text-[11px] font-semibold">
-                <button onClick={() => setSelectedSubjectModal(sub.name)} className="flex items-center gap-1 text-blue-600 dark:text-blue-400 cursor-pointer">
-                  View details <ChevronRight className="h-3.5 w-3.5" />
-                </button>
+                <div className="mt-auto flex justify-end pt-2 text-[11px] font-semibold">
+                  <button onClick={() => setSelectedSubjectModal(sub.name)} className="flex items-center gap-1 rounded-full bg-white/75 px-3 py-1.5 text-blue-700 shadow-sm backdrop-blur transition-all hover:bg-white">
+                    View details <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           );
@@ -885,8 +1030,8 @@ export default function StudentDashboard({
 
       {/* Attendance History Pop-up Modal */}
       {showAttendanceHistoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn" id="attendance-history-modal">
-          <div className="w-full max-w-md rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn backdrop-blur-sm" id="attendance-history-modal" onClick={() => setShowAttendanceHistoryModal(false)}>
+          <div className="w-full max-w-md rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 shrink-0">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Attendance Log</p>
@@ -928,8 +1073,8 @@ export default function StudentDashboard({
 
       {/* Fee Payment History Pop-up Modal */}
       {showFeeHistoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn" id="fee-history-modal">
-          <div className="w-full max-w-md rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn backdrop-blur-sm" id="fee-history-modal" onClick={() => setShowFeeHistoryModal(false)}>
+          <div className="w-full max-w-md rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 shrink-0">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Payment Ledger</p>
@@ -967,8 +1112,8 @@ export default function StudentDashboard({
 
       {/* Subject details popup modal */}
       {activeSubjectDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn" id="subject-detail-modal">
-          <div className="w-full max-w-md rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fadeIn backdrop-blur-sm" id="subject-detail-modal" onClick={() => setSelectedSubjectModal(null)}>
+          <div className="w-full max-w-md rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Subject details</p>

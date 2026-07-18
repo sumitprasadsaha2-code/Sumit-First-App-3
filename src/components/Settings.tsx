@@ -573,13 +573,11 @@ export default function Settings({
                 <div>
                   <span className="text-xs font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
                     <QrIcon className="w-4 h-4" />
-                    Manage Payment QR Code
+                    Payment QR Code
                   </span>
-                  <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">View, download, or share your latest payment QR for fee payments.</span>
+                  <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">View, download, or share the admin-uploaded payment QR for fee payments.</span>
                 </div>
               </div>
-
-              <input type="file" ref={fileInputRef} onChange={handleQrUpload} accept="image/*" className="hidden" />
 
               {qrCode ? (
                 <div className="mt-4 flex flex-col items-center gap-4 rounded-2xl border border-slate-100 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-950/40 p-4">
@@ -590,10 +588,37 @@ export default function Settings({
                   </div>
                 </div>
               ) : (
-                <button onClick={() => fileInputRef.current?.click()} className="mt-4 w-full rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 py-8 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:border-blue-500 hover:bg-blue-50/10 transition-all cursor-pointer">
-                  Upload payment QR image
-                </button>
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 py-8 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  No payment QR code has been uploaded yet.
+                </div>
               )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-105 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+                  <Sun className="w-4 h-4" />
+                  Student Theme
+                </span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">Choose a premium colour gradient that will appear across the student portal instantly.</span>
+              </div>
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: "sapphire", name: "Sapphire", color: "from-blue-600 to-indigo-700" },
+                  { id: "olive", name: "Olive", color: "from-emerald-600 to-lime-700" },
+                  { id: "ruby", name: "Ruby", color: "from-rose-600 to-red-700" },
+                  { id: "gold", name: "Gold", color: "from-amber-500 to-orange-600" }
+                ].map((themeOption) => (
+                  <button
+                    key={themeOption.id}
+                    onClick={() => onVisualThemeChange(themeOption.id)}
+                    className={`rounded-2xl border px-3 py-3 text-left text-[11px] font-black uppercase tracking-wide transition-all ${visualTheme === themeOption.id ? "border-blue-500 bg-blue-50/70 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400" : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300"}`}
+                  >
+                    <div className={`mb-2 h-2 rounded-full bg-gradient-to-r ${themeOption.color}`} />
+                    <span>{themeOption.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         ) : null}
